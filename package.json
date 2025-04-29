@@ -12,6 +12,7 @@
     "vite": "^6.3.1"
   },
   "dependencies": {
+    "gsap": "^3.12.7",
     "three": "^0.176.0",
     "troika-three-text": "^0.52.4"
   }
