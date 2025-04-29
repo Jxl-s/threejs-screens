@@ -1,9 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { Text } from "troika-three-text";
+import * as ThreeMeshUI from "three-mesh-ui";
 import gsap from "gsap";
 
-// Scene setup
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -16,212 +15,228 @@ camera.position.set(0, 2, 5);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// Screen background
-const screenMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(3, 4),
-  new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
-);
-screenMesh.position.z = -0.01;
-scene.add(screenMesh);
-
-// Groups
-const todoGroup = new THREE.Group();
-scene.add(todoGroup);
-
-const taskGroup = new THREE.Group();
-todoGroup.add(taskGroup);
-
-// Frame
-const frame = new THREE.Mesh(
-  new THREE.PlaneGeometry(2.5, 3.5),
-  new THREE.MeshBasicMaterial({ color: 0xf0f0f0 }),
-);
-frame.position.set(0, 0, 0);
-todoGroup.add(frame);
+// Main container
+const container = new ThreeMeshUI.Block({
+  width: 1.6,
+  height: 2.5,
+  padding: 0.03,
+  fontFamily: "./assets/Roboto-msdf.json",
+  fontTexture: "./assets/Roboto-msdf.png",
+  justifyContent: "start",
+  alignContent: "center",
+  backgroundColor: new THREE.Color(0xf7f7f7),
+  borderRadius: 0.05,
+});
+container.position.set(0, 0, 0);
+scene.add(container);
 
 // Title
-const title = new Text();
-title.text = "TODO List";
-title.fontSize = 0.2;
-title.anchorX = "center";
-title.anchorY = "top";
-title.color = 0x111111;
-title.position.set(0, 1.6, 0.01);
-title.sync();
-todoGroup.add(title);
+const titleBlock = new ThreeMeshUI.Block({
+  width: 1.4,
+  height: 0.2,
+  margin: 0.02,
+  justifyContent: "center",
+  alignContent: "center",
+  backgroundOpacity: 0,
+});
+const titleText = new ThreeMeshUI.Text({
+  content: "My TODOs",
+  fontSize: 0.18,
+  fontColor: new THREE.Color(0x111111),
+});
+titleBlock.add(titleText);
+container.add(titleBlock);
 
-// State
-const tasks = [];
-const raycastables = [];
-
-// Helpers
-function createTask(text) {
-  const index = tasks.length;
-  const offsetY = 1.2 - index * 0.6;
-
-  const background = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.0, 0.4),
-    new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0,
-    }),
-  );
-  background.position.set(0, offsetY, 0.02 + index * 0.001);
-  taskGroup.add(background);
-
-  const checkbox = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.3, 0.3),
-    new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0,
-    }),
-  );
-  checkbox.position.set(-0.85, offsetY, 0.03 + index * 0.001);
-  taskGroup.add(checkbox);
-
-  const label = new Text();
-  label.text = text;
-  label.fontSize = 0.12;
-  label.anchorX = "left";
-  label.anchorY = "middle";
-  label.color = 0x000000;
-  label.position.set(-0.6, offsetY, 0.04 + index * 0.001);
-  label.sync();
-  taskGroup.add(label);
-
-  const task = { background, checkbox, label, done: false };
-  tasks.push(task);
-
-  checkbox.userData = {
-    hoverCursor: true,
-    onClick: () => {
-      task.done = !task.done;
-      checkbox.material.color.set(task.done ? 0x00ff00 : 0xffffff);
-    },
-    onHover: (hovered) => {
-      if (!task.done)
-        checkbox.material.color.set(hovered ? 0xdddddd : 0xffffff);
-    },
-  };
-  raycastables.push(checkbox);
-
-  gsap.to(background.material, { opacity: 1, duration: 0.5 });
-  gsap.to(checkbox.material, { opacity: 1, duration: 0.5 });
-}
-
-function deleteTask() {
-  if (tasks.length === 0) return;
-  const task = tasks.pop();
-
-  raycastables.splice(raycastables.indexOf(task.checkbox), 1);
-
-  gsap.to(task.background.material, {
-    opacity: 0,
-    duration: 0.4,
-    onComplete: () => {
-      taskGroup.remove(task.background, task.checkbox, task.label);
-    },
-  });
-  gsap.to(task.checkbox.material, { opacity: 0, duration: 0.4 });
-}
-
-function updateTasks() {
-  tasks.forEach((task, i) => {
-    const offsetY = 1.2 - i * 0.6;
-    task.background.position.y = offsetY;
-    task.checkbox.position.y = offsetY;
-    task.label.position.y = offsetY;
-  });
-}
+// Proper task list block
+const taskList = new ThreeMeshUI.Block({
+  width: 1.4,
+  height: 1.7,
+  padding: 0.02,
+  justifyContent: "start",
+  contentDirection: "column",
+  alignContent: "center",
+  backgroundOpacity: 0,
+});
+container.add(taskList);
 
 // Buttons
-const buttonGroup = new THREE.Group();
-todoGroup.add(buttonGroup);
+const buttonRow = new ThreeMeshUI.Block({
+  width: 1.4,
+  height: 0.3,
+  margin: 0.02,
+  justifyContent: "space-around",
+  alignContent: "center",
+  contentDirection: "row",
+  backgroundOpacity: 0,
+});
+container.add(buttonRow);
 
-const addButton = new THREE.Mesh(
-  new THREE.PlaneGeometry(0.7, 0.3),
-  new THREE.MeshBasicMaterial({ color: 0x00cc00 }),
+const addButton = new ThreeMeshUI.Block({
+  width: 0.6,
+  height: 0.25,
+  justifyContent: "center",
+  alignContent: "center",
+  backgroundColor: new THREE.Color(0x28a745),
+  borderRadius: 0.04,
+});
+addButton.add(
+  new ThreeMeshUI.Text({
+    content: "Add",
+    fontSize: 0.14,
+    fontColor: new THREE.Color(0xffffff),
+  }),
 );
-addButton.position.set(-0.6, -1.4, 0.02);
-buttonGroup.add(addButton);
+addButton.userData.type = "add";
 
-const addLabel = new Text();
-addLabel.text = "Add";
-addLabel.fontSize = 0.1;
-addLabel.anchorX = "center";
-addLabel.anchorY = "middle";
-addLabel.color = 0xffffff;
-addLabel.position.set(-0.6, -1.4, 0.03);
-addLabel.sync();
-buttonGroup.add(addLabel);
-
-const deleteButton = new THREE.Mesh(
-  new THREE.PlaneGeometry(0.7, 0.3),
-  new THREE.MeshBasicMaterial({ color: 0xcc0000 }),
+const deleteButton = new ThreeMeshUI.Block({
+  width: 0.6,
+  height: 0.25,
+  justifyContent: "center",
+  alignContent: "center",
+  backgroundColor: new THREE.Color(0xdc3545),
+  borderRadius: 0.04,
+});
+deleteButton.add(
+  new ThreeMeshUI.Text({
+    content: "Delete",
+    fontSize: 0.14,
+    fontColor: new THREE.Color(0xffffff),
+  }),
 );
-deleteButton.position.set(0.6, -1.4, 0.02);
-buttonGroup.add(deleteButton);
+deleteButton.userData.type = "delete";
 
-const deleteLabel = new Text();
-deleteLabel.text = "Delete";
-deleteLabel.fontSize = 0.1;
-deleteLabel.anchorX = "center";
-deleteLabel.anchorY = "middle";
-deleteLabel.color = 0xffffff;
-deleteLabel.position.set(0.6, -1.4, 0.03);
-deleteLabel.sync();
-buttonGroup.add(deleteLabel);
+buttonRow.add(addButton);
+buttonRow.add(deleteButton);
 
-addButton.userData = {
-  hoverCursor: true,
-  onClick: () => {
-    const value = input.value.trim();
-    if (value) {
-      createTask(value);
-      input.value = "";
-      updateTasks();
-    }
-  },
-};
-
-deleteButton.userData = {
-  hoverCursor: true,
-  onClick: () => {
-    deleteTask();
-    updateTasks();
-  },
-};
-
-raycastables.push(addButton, deleteButton);
-
-// HTML input
+// HTML Input
 const input = document.createElement("input");
 input.style.position = "absolute";
 input.style.top = "20px";
 input.style.left = "50%";
 input.style.transform = "translateX(-50%)";
-input.style.fontSize = "16px";
+input.style.fontSize = "18px";
 input.placeholder = "New Task";
+input.style.padding = "8px";
+input.style.borderRadius = "6px";
+input.style.border = "1px solid #ccc";
 document.body.appendChild(input);
+
+// State
+const tasks = [];
+let deleteMode = false;
+
+function createTask(text) {
+  const taskBlock = new ThreeMeshUI.Block({
+    width: 1.3,
+    height: 0.3,
+    margin: 0.01,
+    justifyContent: "center",
+    alignContent: "center",
+    backgroundColor: new THREE.Color(0xffffff),
+    borderRadius: 0.03,
+  });
+  const taskText = new ThreeMeshUI.Text({
+    content: text,
+    fontSize: 0.14,
+    fontColor: new THREE.Color(0x333333),
+  });
+  taskBlock.add(taskText);
+  taskBlock.userData.type = "task";
+
+  taskBlock.position.z = tasks.length * -0.01; // Separate Z to avoid Z-fighting
+
+  taskList.add(taskBlock);
+  taskList.updateLayout();
+  tasks.push(taskBlock);
+
+  gsap.fromTo(taskBlock.scale, { x: 0, y: 0 }, { x: 1, y: 1, duration: 0.5 });
+}
+
+function enterDeleteMode() {
+  deleteMode = true;
+  tasks.forEach((task) => {
+    task.set({ backgroundColor: new THREE.Color(0xffdddd) });
+  });
+}
+
+function exitDeleteMode() {
+  deleteMode = false;
+  tasks.forEach((task) => {
+    task.set({ backgroundColor: new THREE.Color(0xffffff) });
+  });
+}
+
+function deleteTask(targetTask) {
+  const index = tasks.indexOf(targetTask);
+  if (index === -1) return;
+
+  gsap.to(targetTask.scale, {
+    x: 0,
+    y: 0,
+    duration: 0.4,
+    onComplete: () => {
+      taskList.remove(targetTask);
+      tasks.splice(index, 1);
+      taskList.updateLayout();
+      resetZOrder();
+      exitDeleteMode();
+    },
+  });
+}
+
+function resetZOrder() {
+  tasks.forEach((task, i) => {
+    task.position.z = i * -0.01;
+  });
+}
+
+function findType(object) {
+  while (object) {
+    if (object.userData?.type)
+      return { type: object.userData.type, block: object };
+    object = object.parent;
+  }
+  return { type: null, block: null };
+}
 
 // Raycaster
 const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+const mouse = new THREE.Vector2();
 let hovered = null;
 
 window.addEventListener("pointermove", (event) => {
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 });
 
 window.addEventListener("click", () => {
-  if (hovered?.userData?.onClick) hovered.userData.onClick();
+  if (!hovered) return;
+
+  const { type, block } = findType(hovered);
+
+  if (deleteMode) {
+    if (type === "task") {
+      deleteTask(block);
+    }
+    return;
+  }
+
+  if (type === "add") {
+    const value = input.value.trim();
+    if (value) {
+      createTask(value);
+      input.value = "";
+    }
+  }
+
+  if (type === "delete") {
+    if (tasks.length > 0) enterDeleteMode();
+  }
 });
 
 window.addEventListener("resize", () => {
@@ -235,33 +250,29 @@ window.addEventListener("resize", () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  raycaster.setFromCamera(pointer, camera);
-  const intersects = raycaster.intersectObjects(raycastables);
+  ThreeMeshUI.update();
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
 
   if (intersects.length > 0) {
-    const hit = intersects[0].object;
-    if (hovered !== hit) {
-      if (hovered?.userData?.onHover) hovered.userData.onHover(false);
-      if (hit.userData?.onHover) hit.userData.onHover(true);
-      hovered = hit;
+    const obj = intersects[0].object;
+    const { type } = findType(obj);
+
+    if (type === "add" || type === "delete" || type === "task") {
+      hovered = obj;
+      document.body.style.cursor = "pointer";
+    } else {
+      hovered = null;
+      document.body.style.cursor = "auto";
     }
   } else {
-    if (hovered?.userData?.onHover) hovered.userData.onHover(false);
     hovered = null;
+    document.body.style.cursor = "auto";
   }
-
-  document.body.style.cursor =
-    hovered && hovered.userData.hoverCursor ? "pointer" : "auto";
 
   controls.update();
   renderer.render(scene, camera);
 }
 
 animate();
-
-// Create initial tasks
-createTask("Finish homework");
-createTask("Buy groceries");
-createTask("Clean room");
-createTask("Call mom");
-updateTasks();
